@@ -1,6 +1,7 @@
 package com.codeup.adlister.dao;
 
 import com.codeup.adlister.models.Ad;
+import com.mysql.cj.api.mysqla.result.Resultset;
 import com.mysql.cj.jdbc.Driver;
 
 import java.io.FileInputStream;
@@ -18,7 +19,7 @@ public class MySQLAdsDao implements Ads {
             DriverManager.registerDriver(new Driver());
             connection = DriverManager.getConnection(
                 config.getUrl(),
-                config.getUser(),
+                config.getUsername(),
                 config.getPassword()
             );
         } catch (SQLException e) {
@@ -41,13 +42,26 @@ public class MySQLAdsDao implements Ads {
     @Override
     public Long insert(Ad ad) {
         try {
-            Statement stmt = connection.createStatement();
-            stmt.executeUpdate(createInsertQuery(ad), Statement.RETURN_GENERATED_KEYS);
+            PreparedStatement stmt = connection.prepareStatement(createInsertQuery(ad), Statement.RETURN_GENERATED_KEYS);
+//            stmt.executeUpdate(createInsertQuery(ad), Statement.RETURN_GENERATED_KEYS);
             ResultSet rs = stmt.getGeneratedKeys();
             rs.next();
             return rs.getLong(1);
         } catch (SQLException e) {
             throw new RuntimeException("Error creating a new ad.", e);
+        }
+    }
+
+    // FER EXAMPLE
+    public List<Ad> orderedAds (String order) {
+        String qry = "SELECT * FROM ads ORDER BY ? DESC";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(qry);
+            stmt.setString(1, order);
+            ResultSet rs = stmt.executeQuery();
+            return createAdsFromResults(rs);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error ordering the ads", e);
         }
     }
 
@@ -57,7 +71,6 @@ public class MySQLAdsDao implements Ads {
             + "'" + ad.getTitle() +"', "
             + "'" + ad.getDescription() + "')";
     }
-
     private Ad extractAd(ResultSet rs) throws SQLException {
         return new Ad(
             rs.getLong("id"),
